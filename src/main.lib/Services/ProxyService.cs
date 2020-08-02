@@ -25,6 +25,8 @@ namespace PKISharp.WACS.Services
         /// </summary>
         public bool UseSystemProxy => string.Equals(_settings.Proxy.Url, "[System]", StringComparison.OrdinalIgnoreCase);
 
+        public bool useEnvVariableProxy = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("HTTP_PROXY"));
+
         /// <summary>
         /// Get prepared HttpClient with correct system proxy settings
         /// </summary>
@@ -39,8 +41,8 @@ namespace PKISharp.WACS.Services
             if (!checkSsl)
             {
                 httpClientHandler.ServerCertificateCustomValidationCallback = (a, b, c, d) => true;
-            } 
-            if (UseSystemProxy)
+            }
+            if (UseSystemProxy && !useEnvVariableProxy)
             {
                 httpClientHandler.DefaultProxyCredentials = CredentialCache.DefaultCredentials;
             }
@@ -53,14 +55,15 @@ namespace PKISharp.WACS.Services
 
             public LoggingHttpClientHandler(ILogService log) => _log = log;
 
-            protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) {
+            protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            {
                 _log.Debug("Send {method} request to {uri}", request.Method, request.RequestUri);
                 var response = await base.SendAsync(request, cancellationToken);
                 _log.Verbose("Request completed with status {s}", response.StatusCode);
                 return response;
             }
         }
-       
+
 
         /// <summary>
         /// Get proxy server to use for web requests
@@ -70,10 +73,10 @@ namespace PKISharp.WACS.Services
         {
             if (_proxy == null)
             {
-                var proxy = UseSystemProxy ? 
-                                null : 
-                                string.IsNullOrEmpty(_settings.Proxy.Url) ? 
-                                    new WebProxy() : 
+                var proxy = useEnvVariableProxy ? getEnvProxy()
+                            : UseSystemProxy ? null :
+                                string.IsNullOrEmpty(_settings.Proxy.Url) ?
+                                    new WebProxy() :
                                     new WebProxy(_settings.Proxy.Url);
                 if (proxy != null)
                 {
@@ -96,6 +99,39 @@ namespace PKISharp.WACS.Services
                 _proxy = proxy;
             }
             return _proxy;
+        }
+        private IWebProxy getEnvProxy()
+        {
+            IWebProxy proxy = new WebProxy();
+            var httpProxy = Environment.GetEnvironmentVariable("HTTP_PROXY");
+            useEnvVariableProxy = !string.IsNullOrEmpty(httpProxy);
+            _log.Information("HTTP_PROXY variable is:{httpProxy} and use environment proxy:{useEnvVariableProxy}", httpProxy, useEnvVariableProxy);
+            if (useEnvVariableProxy && !string.IsNullOrEmpty(httpProxy))
+            {
+                bool isEnvAuthentication = httpProxy.Contains("@");
+                _log.Information("Creating proxy using HTTP_PROXY variable");
+                var protocol = httpProxy.Substring(0, httpProxy.IndexOf("//") + 2);
+                if (isEnvAuthentication)
+                {
+                    _log.Information("Setting environment authentication parameters");
+                    var usernamePassword = httpProxy.Substring(httpProxy.LastIndexOf("//") + 2, httpProxy.LastIndexOf("@") - httpProxy.LastIndexOf("//") - 2);
+                    var username = usernamePassword.Substring(0, usernamePassword.LastIndexOf(":"));
+                    var password = usernamePassword.Substring(usernamePassword.LastIndexOf(":") + 1, usernamePassword.Length - usernamePassword.LastIndexOf(":") - 1);
+                    var ipAndPort = httpProxy.Substring(httpProxy.LastIndexOf("@") + 1, httpProxy.Length - httpProxy.LastIndexOf("@") - 1);
+                    proxy = new WebProxy(new Uri(String.Format("{0}{1}", protocol, ipAndPort)));
+                    if (!string.IsNullOrWhiteSpace(username))
+                    {
+                        proxy.Credentials = new NetworkCredential(username, password);
+                    }
+                }
+                else
+                {
+                    var ipAndPort = httpProxy.Substring(httpProxy.IndexOf("//") + 2, httpProxy.Length - httpProxy.IndexOf("//") - 2);
+                    proxy = new WebProxy(new Uri(String.Format("{0}{1}", protocol, ipAndPort)));
+
+                }
+            }
+            return proxy;
         }
 
     }
