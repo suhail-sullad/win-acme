@@ -23,7 +23,7 @@ namespace PKISharp.WACS.Extensions
             {
                 str = str.Replace($"{uri.UserInfo}@", "");
             }
-            str = str.Replace("https://", "").Replace("http://", "");
+            str = str.Replace("https://", "").Replace("http://", "").ReplaceURLParameters();
             return str.CleanPath();
         }
 
@@ -159,5 +159,11 @@ namespace PKISharp.WACS.Extensions
             var hash = sha1.ComputeHash(Encoding.UTF8.GetBytes(original));
             return string.Concat(hash.Select(b => b.ToString("x2")));
         }
+
+        private static string ReplaceURLParameters(this string input)
+        {
+            return Regex.Replace(input, @"\?.*", "");
+        }
+
     }
 }

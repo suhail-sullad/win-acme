@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using PKISharp.WACS.Configuration;
 
 namespace PKISharp.WACS.Services
 {
@@ -147,6 +148,9 @@ namespace PKISharp.WACS.Services
             // This only happens when invalid options are provided 
             Client.ConfigurationPath = Path.Combine(configRoot, BaseUri.CleanUri());
 
+            // If this is EAB based then append the Key Identifier 
+            Client.ConfigurationPath = appendKeyIdentifier(Client.ConfigurationPath);
+            
             // Create folder if it doesn't exist yet
             var di = new DirectoryInfo(Client.ConfigurationPath);
             if (!di.Exists)
@@ -215,6 +219,13 @@ namespace PKISharp.WACS.Services
                 }
             }
             _log.Debug("Cache path: {_certificatePath}", Cache.Path);
+        }
+
+        private string appendKeyIdentifier(string originalPath)
+        {
+            var accountArgs = _arguments.GetArguments<AccountArguments>();
+            string eabIdentifier = _arguments.TryGetRequiredArgument(nameof(accountArgs.EabKeyIdentifier), accountArgs?.EabKeyIdentifier);
+            return Path.Combine(originalPath, eabIdentifier);
         }
 
         public class ClientSettings
