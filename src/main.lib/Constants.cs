@@ -22,7 +22,7 @@ namespace PKISharp.WACS
 
     public static class Constants
     {
-        public const int MaxNames = 100;
+        public const int MaxNames = 250;
         public const string Dns01ChallengeType = Dns01ChallengeValidationDetails.Dns01ChallengeType;
         public const string Http01ChallengeType = Http01ChallengeValidationDetails.Http01ChallengeType;
         public const string TlsAlpn01ChallengeType = TlsAlpn01ChallengeValidationDetails.TlsAlpn01ChallengeType;
