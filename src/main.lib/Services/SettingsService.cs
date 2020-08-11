@@ -225,7 +225,7 @@ namespace PKISharp.WACS.Services
         {
             var accountArgs = _arguments.GetArguments<AccountArguments>();
             string eabIdentifier = _arguments.TryGetRequiredArgument(nameof(accountArgs.EabKeyIdentifier), accountArgs?.EabKeyIdentifier);
-            return Path.Combine(originalPath, eabIdentifier);
+            return Path.Combine(originalPath, eabIdentifier.SHA1());
         }
 
         public class ClientSettings
